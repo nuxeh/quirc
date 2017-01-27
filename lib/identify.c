@@ -19,6 +19,8 @@
 #include <math.h>
 #include "quirc_internal.h"
 
+#include "timing.h"
+
 /************************************************************************
  * Linear algebra routines
  */
@@ -186,6 +188,8 @@ static void threshold(struct quirc *q)
 	int threshold_s = q->w / THRESHOLD_S_DEN;
 	quirc_pixel_t *row = q->pixels;
 
+	__start(0);
+
 	/*
 	 * Ensure a sane, non-zero value for threshold_s.
 	 *
@@ -196,33 +200,8 @@ static void threshold(struct quirc *q)
 		threshold_s = THRESHOLD_S_MIN;
 
 	for (y = 0; y < q->h; y++) {
-		int row_average[q->w];
-
-		memset(row_average, 0, sizeof(row_average));
-
 		for (x = 0; x < q->w; x++) {
-			int w, u;
-
-			if (y & 1) {
-				w = x;
-				u = q->w - 1 - x;
-			} else {
-				w = q->w - 1 - x;
-				u = x;
-			}
-
-			avg_w = (avg_w * (threshold_s - 1)) /
-				threshold_s + row[w];
-			avg_u = (avg_u * (threshold_s - 1)) /
-				threshold_s + row[u];
-
-			row_average[w] += avg_w;
-			row_average[u] += avg_u;
-		}
-
-		for (x = 0; x < q->w; x++) {
-			if (row[x] < row_average[x] *
-			    (100 - THRESHOLD_T) / (200 * threshold_s))
+			if (row[x] < 150)
 				row[x] = QUIRC_PIXEL_BLACK;
 			else
 				row[x] = QUIRC_PIXEL_WHITE;
@@ -230,6 +209,8 @@ static void threshold(struct quirc *q)
 
 		row += q->w;
 	}
+
+	__stop(0, "quirc-1bit");
 }
 
 static void area_count(void *user_data, int y, int left, int right)
