@@ -183,7 +183,7 @@ static void flood_fill_seed(struct quirc *q, int x, int y, int from, int to,
 
 #define WINDOW_DIV		10
 #define WIN_WIDTH		100
-#define WIN_HEIGH		WIN_WIDTH
+#define WIN_HEIGHT		WIN_WIDTH
 
 static void threshold(struct quirc *q)
 {
@@ -200,19 +200,20 @@ static void threshold(struct quirc *q)
 
 	__start(0);
 
-	int b, i, avg;
+	int b, avg;
 	unsigned long tot;
 
 	for (y = 0; y < q->h; y++) {
 		for (x = 0; x < q->w; x++) {
-			total = 0;
+			tot = 0;
 
 			/* reset pointer to beginning of buffer */
 			avg_buf = avg_buf_start;
 
 			/* copy pixel data to averaging window */
 			for (b=0; b<WIN_HEIGHT; b++) {
-				win_lstart = row[x] - (WIN_WIDTH / 2) - (q->w * ((WIN_HEIGHT / 2) - b));
+
+				win_lstart = row + x - (WIN_WIDTH / 2) - (q->w * ((WIN_HEIGHT / 2) - b));
 				//win_lstart = row[x]-(q->w * b);
 
 				if (win_lstart > row_start &&
@@ -227,15 +228,15 @@ static void threshold(struct quirc *q)
 
 			/* get average for window */
 			while (avg_buf < avg_buf_end) {
-				total += *avg_buf;
+				tot += *avg_buf;
 				avg_buf++;
 			}
 
-			avg = total / (WIN_HEIGHT*WIN_WIDTH)
-			printf("avg: %d\n", avg);
+			avg = tot / (WIN_HEIGHT*WIN_WIDTH);
+			//printf("avg: %d\n", avg);
 
 			/* threshold the pixel data */
-			if (row[x] < 100)
+			if (row[x] < avg)
 				row[x] = QUIRC_PIXEL_BLACK;
 			else
 				row[x] = QUIRC_PIXEL_WHITE;
