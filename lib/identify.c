@@ -20,6 +20,7 @@
 #include "quirc_internal.h"
 
 #include "timing.h"
+#include <png.h>
 
 /************************************************************************
  * Linear algebra routines
@@ -180,28 +181,61 @@ static void flood_fill_seed(struct quirc *q, int x, int y, int from, int to,
 #define THRESHOLD_S_DEN		8
 #define THRESHOLD_T		5
 
+#define WINDOW_DIV		10
+#define WIN_WIDTH		100
+#define WIN_HEIGH		WIN_WIDTH
+
 static void threshold(struct quirc *q)
 {
 	int x, y;
-	int avg_w = 0;
-	int avg_u = 0;
-	int threshold_s = q->w / THRESHOLD_S_DEN;
 	quirc_pixel_t *row = q->pixels;
+
+	quirc_pixel_t *row_start = row;
+	quirc_pixel_t *row_end = row + (q->w * q->h);
+
+	quirc_pixel_t *avg_buf = malloc(WIN_WIDTH * WIN_HEIGHT);
+	quirc_pixel_t *avg_buf_start = avg_buf;
+	quirc_pixel_t *avg_buf_end;
+	quirc_pixel_t *win_lstart;
 
 	__start(0);
 
-	/*
-	 * Ensure a sane, non-zero value for threshold_s.
-	 *
-	 * threshold_s can be zero if the image width is small. We need to avoid
-	 * SIGFPE as it will be used as divisor.
-	 */
-	if (threshold_s < THRESHOLD_S_MIN)
-		threshold_s = THRESHOLD_S_MIN;
+	int b, i, avg;
+	unsigned long tot;
 
 	for (y = 0; y < q->h; y++) {
 		for (x = 0; x < q->w; x++) {
-			if (row[x] < 150)
+			total = 0;
+
+			/* reset pointer to beginning of buffer */
+			avg_buf = avg_buf_start;
+
+			/* copy pixel data to averaging window */
+			for (b=0; b<WIN_HEIGHT; b++) {
+				win_lstart = row[x] - (WIN_WIDTH / 2) - (q->w * ((WIN_HEIGHT / 2) - b));
+				//win_lstart = row[x]-(q->w * b);
+
+				if (win_lstart > row_start &&
+				    win_lstart + WIN_WIDTH < row_end) {
+
+					memcpy(avg_buf, win_lstart, WIN_WIDTH);
+					avg_buf += WIN_WIDTH;
+				}
+			}
+			avg_buf_end = avg_buf - WIN_WIDTH; /* fix */
+			avg_buf = avg_buf_start;
+
+			/* get average for window */
+			while (avg_buf < avg_buf_end) {
+				total += *avg_buf;
+				avg_buf++;
+			}
+
+			avg = total / (WIN_HEIGHT*WIN_WIDTH)
+			printf("avg: %d\n", avg);
+
+			/* threshold the pixel data */
+			if (row[x] < 100)
 				row[x] = QUIRC_PIXEL_BLACK;
 			else
 				row[x] = QUIRC_PIXEL_WHITE;
